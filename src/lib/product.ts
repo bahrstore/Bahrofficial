@@ -10,11 +10,23 @@ export const amount = (m: Money) => Number(m.amount)
 
 export const productPrice = (p: Product) => p.priceRange.minVariantPrice
 
-/** The compare-at price when it's above the selling price, otherwise null. */
+/**
+ * The "was" price to show beside productPrice: the compare-at price of a variant that sells at that price, when
+ * it's above it; otherwise null. compareAtPriceRange isn't used because its minimum can belong to a different
+ * variant than the cheapest one, which would pair one variant's price with another's compare-at.
+ */
 export function compareAtPrice(p: Product): Money | null {
-  const c = p.compareAtPriceRange.minVariantPrice
-  return amount(c) > amount(productPrice(p)) ? c : null
+  const price = amount(productPrice(p))
+  const compares = p.variants.nodes
+    .filter(v => amount(v.price) === price)
+    .map(variantCompareAt)
+    .filter((c): c is Money => !!c)
+  // Several variants at that price with different compare-at prices: claim the smallest saving.
+  return compares.reduce<Money | null>((min, c) => (!min || amount(c) < amount(min) ? c : min), null)
 }
+
+/** True when at least one variant sells below its own compare-at price (Offer badge and "On offer" filter). */
+export const onOffer = (p: Product) => p.variants.nodes.some(v => !!variantCompareAt(v))
 
 const inCollection = (p: Product, handle: string) => p.collections.nodes.some(c => c.handle === handle)
 
@@ -30,7 +42,7 @@ export function productCategory(p: Product): Category | null {
 
 export function productBadge(p: Product): Badge | null {
   if (inCollection(p, 'trending')) return 'trending'
-  if (compareAtPrice(p)) return 'sale'
+  if (onOffer(p)) return 'sale'
   if (p.tags.includes('new')) return 'new'
   return null
 }

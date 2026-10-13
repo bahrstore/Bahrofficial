@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { COLLECTIONS, PRICE_BUCKETS, SORTS, type PriceKey, type Sort } from '../data'
-import { amount, compareAtPrice, productCategory, productPrice, type Category } from '../lib/product'
+import { amount, onOffer, productCategory, productPrice, type Category } from '../lib/product'
 import type { Product } from '../lib/types'
 import { useCollection } from '../lib/useShopify'
 import { useStore } from '../store'
@@ -74,7 +74,7 @@ export function CollectionPage({ slug }: { slug: string }) {
     (skip === 'q' || !ql || p.title.toLowerCase().includes(ql)) &&
     (skip === 'stock' || !stock || p.availableForSale) &&
     (skip === 'price' || !price.length || price.some(k => PRICE_BUCKETS.find(b => b[0] === k)![1](amount(productPrice(p))))) &&
-    (skip === 'offer' || !offer || !!compareAtPrice(p)) &&
+    (skip === 'offer' || !offer || onOffer(p)) &&
     (skip === 'cat' || !cats.length || cats.some(c => c === productCategory(p)))
 
   const products = base.filter(p => pass(p))
@@ -91,7 +91,7 @@ export function CollectionPage({ slug }: { slug: string }) {
   const buckets = PRICE_BUCKETS.filter(([, f]) => base.some(p => f(priceOf(p))))
   if (buckets.length > 1) groups.push({ id: 'price', title: t.gPrice, options: buckets.map(([k, f]) => opt(t.priceL[k], 'price', p => f(priceOf(p)), price.includes(k), () => toggleIn('price', price, k))) })
   if (base.some(p => !p.availableForSale)) groups.push({ id: 'stock', title: t.gStock, options: [opt(t.inStock, 'stock', p => p.availableForSale, stock, () => update({ stock: !stock }))] })
-  if (base.some(p => compareAtPrice(p))) groups.push({ id: 'offer', title: t.gOffer, options: [opt(t.onOffer, 'offer', p => !!compareAtPrice(p), offer, () => update({ offer: !offer }))] })
+  if (base.some(onOffer)) groups.push({ id: 'offer', title: t.gOffer, options: [opt(t.onOffer, 'offer', onOffer, offer, () => update({ offer: !offer }))] })
 
   const chips: { label: string; remove: () => void }[] = [
     ...cats.map(c => ({ label: catLabel(c), remove: () => toggleIn('cat', cats, c) })),

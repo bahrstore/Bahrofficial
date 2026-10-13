@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkoutHref, compareAtPrice, defaultVariant, discountPercent, hasOnlyDefaultVariant, imageUrl, productBadge, productCategory, productCollection, variantCompareAt } from './product'
+import { checkoutHref, compareAtPrice, onOffer, defaultVariant, discountPercent, hasOnlyDefaultVariant, imageUrl, productBadge, productCategory, productCollection, variantCompareAt } from './product'
 import type { Money, Product, ProductVariant } from './types'
 
 // Minimal Storefront-shaped inputs for these pure helpers (test-only; the app has no sample data).
@@ -24,6 +24,22 @@ describe('pricing', () => {
   it('shows a compare-at price only when it is above the selling price', () => {
     expect(compareAtPrice(product([variant('v', 'Default Title', 7.2, { compareAtPrice: bhd(8.5) })]))?.amount).toBe('8.500')
     expect(compareAtPrice(product([variant('v', 'Default Title', 5.9)]))).toBeNull()
+  })
+  it('pairs the card price with the compare-at price of the same variant, never another variant’s', () => {
+    // Cheapest variant has no compare-at; only the dearer one is discounted.
+    const mixed = product([variant('a', 'Small', 5), variant('b', 'Large', 10, { compareAtPrice: bhd(12) })])
+    expect(compareAtPrice({ ...mixed, compareAtPriceRange: { minVariantPrice: bhd(12), maxVariantPrice: bhd(12) } })).toBeNull()
+    expect(onOffer(mixed)).toBe(true)
+    expect(productBadge(mixed)).toBe('sale')
+    // Cheapest variant discounted: its own compare-at, not the range minimum from another variant.
+    const cheapOnSale = product([variant('a', 'Small', 5, { compareAtPrice: bhd(9) }), variant('b', 'Large', 10, { compareAtPrice: bhd(6) })])
+    expect(compareAtPrice(cheapOnSale)?.amount).toBe('9.000')
+  })
+  it('is not on offer when no variant sells below its compare-at price', () => {
+    const p = product([variant('a', 'Small', 5, { compareAtPrice: bhd(5) }), variant('b', 'Large', 10)])
+    expect(compareAtPrice(p)).toBeNull()
+    expect(onOffer(p)).toBe(false)
+    expect(productBadge(p)).toBeNull()
   })
   it('computes the discount from real prices', () => {
     expect(discountPercent(bhd(7.2), bhd(8.5))).toBe(15)
