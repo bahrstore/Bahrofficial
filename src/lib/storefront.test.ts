@@ -54,6 +54,31 @@ describe('Storefront client: requests', () => {
   })
 })
 
+describe('Storefront client: search', () => {
+  it('asks Shopify predictive search for product suggestions, with the limit', async () => {
+    const { fetch, calls } = stubFetch({ json: { data: { predictiveSearch: { products: [rawProduct(1), rawProduct(2)] } } } })
+    const products = await client(fetch).predictiveSearch('charger', 'ar', 6)
+    expect(products.map(p => p.handle)).toEqual(['p-1', 'p-2'])
+    expect(calls[0].body.query).toContain('predictiveSearch(query: $query, limit: $limit, types: [PRODUCT])')
+    expect(calls[0].body.variables).toMatchObject({ query: 'charger', limit: 6, language: 'AR', country: 'BH' })
+  })
+
+  it('returns no suggestions when Shopify returns no predictive result', async () => {
+    const { fetch } = stubFetch({ json: { data: { predictiveSearch: null } } })
+    expect(await client(fetch).predictiveSearch('zzz', 'en', 6)).toEqual([])
+  })
+
+  it('follows cursor pagination for full search results, in Shopify’s order', async () => {
+    const page = (nodes: unknown[], next: string | null) => ({ json: { data: { search: { nodes, pageInfo: { hasNextPage: !!next, endCursor: next } } } } })
+    const { fetch, calls } = stubFetch(page([rawProduct(3)], 'c1'), page([rawProduct(1)], null))
+    const products = await client(fetch).searchProducts('mount', 'en')
+    expect(products.map(p => p.handle)).toEqual(['p-3', 'p-1'])
+    expect(calls[0].body.query).toContain('search(query: $query, first: $first, after: $after, types: [PRODUCT])')
+    expect(calls[0].body.variables).toMatchObject({ query: 'mount', after: null })
+    expect(calls[1].body.variables.after).toBe('c1')
+  })
+})
+
 describe('Storefront client: collections', () => {
   const page = (nodes: unknown[], next: string | null) =>
     ({ json: { data: { collection: { id: 'gid://shopify/Collection/1', handle: 'car-accessories', title: 'Car Accessories', description: null, image: null, products: { nodes, pageInfo: { hasNextPage: !!next, endCursor: next } } } } } })

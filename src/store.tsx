@@ -237,7 +237,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setPanel('none')
         const m = path.match(/^\/collections\/([^/?#]+)$/)
         // Product pages resolve any handle; an unknown one shows the page's not-found state.
-        if (path === '/' || (m && COLLECTION_SLUGS.includes(m[1])) || /^\/products\/[^/?#]+(\?[^#]*)?$/.test(path)
+        if (path === '/' || (m && COLLECTION_SLUGS.includes(m[1])) || /^\/(products\/[^/?#]+|search)(\?[^#]*)?$/.test(path)
           || POLICY_SLUGS.some(s => path === `/pages/${s}`)) {
           if (path === pathname) window.scrollTo({ top: 0, behavior: 'smooth' })
           else navigate(path)

@@ -42,6 +42,10 @@ export const getProducts = (lang: Lang): Promise<Product[]> => call(c => c.getPr
 export const getProduct = (handle: string, lang: Lang): Promise<Product | null> => call(c => c.getProduct(handle, lang))
 /** A Shopify collection by handle, with its products (only the first `limit` when given); null when the store has no such collection. */
 export const getCollection = (handle: string, lang: Lang, limit?: number): Promise<Collection | null> => call(c => c.getCollection(handle, lang, limit))
+/** As-you-type product suggestions (Shopify predictive search, at most 10). */
+export const predictiveSearch = (query: string, lang: Lang, limit: number): Promise<Product[]> => call(c => c.predictiveSearch(query, lang, limit))
+/** Products matching a search query, in Shopify's relevance order. */
+export const searchProducts = (query: string, lang: Lang): Promise<Product[]> => call(c => c.searchProducts(query, lang))
 export const getProductRecommendations = (productId: string, lang: Lang): Promise<Product[]> => call(c => c.getProductRecommendations(productId, lang))
 /** All published customer reviews (product_review metaobjects); filter by productId. */
 export const getReviews = (lang: Lang): Promise<Review[]> => call(c => c.getReviews(lang))

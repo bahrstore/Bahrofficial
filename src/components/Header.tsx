@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { productCategory, productPrice } from '../lib/product'
-import { useProducts } from '../lib/useShopify'
+import { usePredictiveSearch } from '../lib/useShopify'
 import { useStore } from '../store'
 import { useIsDesktop, useIsMobile } from '../useMedia'
 import { useNavItems } from '../useNavItems'
@@ -80,21 +80,30 @@ export function Header() {
   )
 }
 
+/** How many suggestions the search panel shows, and how long typing must pause before asking Shopify. */
+const SUGGESTIONS = 6
+const SEARCH_DELAY_MS = 250
+
 function SearchPanel() {
   const { t, lang, money, catLabel, setPanel, route } = useStore()
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const q = query.trim().toLowerCase()
-  const products = useProducts(lang).data ?? []
-  const results = q
-    ? products.filter(p => { const c = productCategory(p); return `${p.title} ${c ? catLabel(c) : ''}`.toLowerCase().includes(q) }).slice(0, 6)
-    : []
+  // Shopify predictive search, asked once typing pauses rather than on every keystroke.
+  const q = query.trim()
+  const [asked, setAsked] = useState('')
+  useEffect(() => {
+    const id = window.setTimeout(() => setAsked(q), SEARCH_DELAY_MS)
+    return () => clearTimeout(id)
+  }, [q])
+  const search = usePredictiveSearch(asked, lang, SUGGESTIONS)
+  const pending = asked !== q || search.loading
+  const results = (search.data ?? []).slice(0, SUGGESTIONS)
 
   return (
     <div className="search-panel">
-      <form role="search" className="search-form" onSubmit={(e) => { e.preventDefault(); if (q) route('/search?q=' + encodeURIComponent(query.trim()))() }}>
+      <form role="search" className="search-form" onSubmit={(e) => { e.preventDefault(); if (q) route('/search?q=' + encodeURIComponent(q))() }}>
         <label htmlFor="bahr-q" className="sr-only">{t.search}</label>
         <div className="search-row">
           <SearchIcon />
@@ -103,7 +112,7 @@ function SearchPanel() {
         </div>
         {q && (
           <div aria-live="polite">
-            {results.length > 0 ? (
+            {pending ? <p className="search-empty">{t.searching}</p> : search.error ? <p className="search-empty">{t.searchError}</p> : results.length > 0 ? (
               <>
                 <ul className="search-results">
                   {results.map(p => (
@@ -117,7 +126,7 @@ function SearchPanel() {
                 </ul>
                 <p className="search-note">{t.searchHint}</p>
               </>
-            ) : <p className="search-empty">{t.searchEmpty}</p>}
+            ) : <p className="search-empty">{t.searchEmpty(q)}</p>}
           </div>
         )}
       </form>

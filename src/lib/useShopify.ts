@@ -1,7 +1,7 @@
 // React hooks over src/lib/shopify.ts. Results are cached per query so components share one request,
 // and a cached result renders immediately (no empty frame when switching back to a language).
 import { useEffect, useState } from 'react'
-import { getCollection, getPolicy, getProduct, getProductRecommendations, getProducts, getReviews } from './shopify'
+import { getCollection, getPolicy, getProduct, getProductRecommendations, getProducts, getReviews, predictiveSearch, searchProducts } from './shopify'
 import type { Collection, Lang, Policy, PolicyKind, Product, Review } from './types'
 
 const pending = new Map<string, Promise<unknown>>()
@@ -45,6 +45,14 @@ export const useProduct = (handle: string, lang: Lang) =>
 
 export const useRecommendations = (productId: string, lang: Lang) =>
   useQuery<Product[]>(`recommendations:${productId}:${lang}`, () => getProductRecommendations(productId, lang))
+
+/** Header search suggestions; an empty query resolves to no products without a request. */
+export const usePredictiveSearch = (query: string, lang: Lang, limit: number) =>
+  useQuery<Product[]>(`predictive:${lang}:${limit}:${query}`, () => (query ? predictiveSearch(query, lang, limit) : Promise.resolve([])))
+
+/** The /search results page; an empty query resolves to no products without a request. */
+export const useSearch = (query: string, lang: Lang) =>
+  useQuery<Product[]>(`search:${lang}:${query}`, () => (query ? searchProducts(query, lang) : Promise.resolve([])))
 
 export const useCollection = (handle: string, lang: Lang, limit?: number) =>
   useQuery<Collection | null>(`collection:${handle}:${lang}${limit ? `:${limit}` : ''}`, () => getCollection(handle, lang, limit))

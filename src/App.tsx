@@ -12,6 +12,7 @@ import { PolicyPage } from './components/PolicyPage'
 import { ProductPage } from './components/ProductPage'
 import { CartDrawer, MenuDrawer, Toast } from './components/Overlays'
 import { Promo } from './components/Promo'
+import { SearchPage } from './components/SearchPage'
 import { Trending } from './components/Trending'
 import { Trust } from './components/Trust'
 import { COLLECTIONS, POLICY_PAGES } from './data'
@@ -76,6 +77,7 @@ function Layout() {
           <Route path="/collections/:slug" element={<Collection />} />
           <Route path="/products/:handle" element={<Product />} />
           <Route path="/pages/:slug" element={<Page />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </ErrorBoundary>

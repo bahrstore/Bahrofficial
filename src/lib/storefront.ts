@@ -87,6 +87,17 @@ const Q_COLLECTION = `query Collection($handle: String!, $first: Int!, $after: S
     products(first: $first, after: $after) { nodes { ${PRODUCT} } pageInfo { hasNextPage endCursor } }
   }
 }`
+// Shopify's own product search (title, product type, vendor, variant titles…), so the app doesn't load the
+// catalogue to search it. predictiveSearch is the quick as-you-type version; it returns at most 10.
+const Q_PREDICTIVE_SEARCH = `query PredictiveSearch($query: String!, $limit: Int!, ${CTX_VARS}) ${CTX} {
+  predictiveSearch(query: $query, limit: $limit, types: [PRODUCT]) { products { ${PRODUCT} } }
+}`
+const Q_SEARCH = `query Search($query: String!, $first: Int!, $after: String, ${CTX_VARS}) ${CTX} {
+  search(query: $query, first: $first, after: $after, types: [PRODUCT]) {
+    nodes { ... on Product { ${PRODUCT} } }
+    pageInfo { hasNextPage endCursor }
+  }
+}`
 const Q_RECOMMENDATIONS = `query Recommendations($productId: ID!, ${CTX_VARS}) ${CTX} {
   productRecommendations(productId: $productId, intent: RELATED) { ${PRODUCT} }
 }`
@@ -312,6 +323,25 @@ export function createStorefrontClient(cfg: StorefrontConfig) {
         after = products.pageInfo.hasNextPage ? products.pageInfo.endCursor : null
       } while (after && nodes.length < (limit ?? MAX_PRODUCTS))
       return { ...head!, products: { nodes: limit ? nodes.slice(0, limit) : nodes } }
+    },
+
+    /** As-you-type product suggestions from Shopify predictive search (`limit` at most 10). */
+    async predictiveSearch(query: string, lang: Lang, limit: number): Promise<Product[]> {
+      const data = await read<{ predictiveSearch: { products: RawProduct[] } | null }>(Q_PREDICTIVE_SEARCH, { query, limit }, lang)
+      return (data.predictiveSearch?.products ?? []).map(mapProduct)
+    },
+
+    /** Products matching a search, in Shopify's relevance order (paginated, up to MAX_PRODUCTS). */
+    async searchProducts(query: string, lang: Lang): Promise<Product[]> {
+      const out: Product[] = []
+      let after: string | null = null
+      do {
+        const data: { search: { nodes: RawProduct[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } =
+          await read(Q_SEARCH, { query, first: PRODUCTS_PAGE, after }, lang)
+        out.push(...data.search.nodes.map(mapProduct))
+        after = data.search.pageInfo.hasNextPage ? data.search.pageInfo.endCursor : null
+      } while (after && out.length < MAX_PRODUCTS)
+      return out
     },
 
     async getProductRecommendations(productId: string, lang: Lang): Promise<Product[]> {
