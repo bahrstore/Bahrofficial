@@ -55,11 +55,13 @@ export function Header() {
           <button type="button" className="icon-btn" onClick={() => setPanel(searchOpen ? 'none' : 'search')} aria-label={t.search} aria-expanded={searchOpen}>
             <SearchIcon />
           </button>
+          {/* Phones get a short label so the switch fits beside the logo. */}
+          <button type="button" className="lang-btn" onClick={() => s.setLang(ar ? 'en' : 'ar')} aria-label={t.switchLang}>
+            <span lang={ar ? 'en' : 'ar'}>{isMobile ? (ar ? 'EN' : 'عربي') : t.otherLang}</span>
+            {!isMobile && <span className="cur">BHD</span>}
+          </button>
           {!isMobile && (
             <>
-              <button type="button" className="lang-btn" onClick={() => s.setLang(ar ? 'en' : 'ar')} aria-label={t.switchLang}>
-                <span lang={ar ? 'en' : 'ar'}>{t.otherLang}</span><span className="cur">BHD</span>
-              </button>
               <a href="/account" onClick={route('/account')} aria-label={t.account} className="icon-btn"><UserIcon /></a>
               <a href="/wishlist" onClick={route('/wishlist')} aria-label={`${t.wishlist}: ${s.num(wishCount)}`} className="icon-btn wish-link">
                 <HeartIcon />

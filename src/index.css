@@ -134,6 +134,7 @@ input::placeholder { color: var(--muted); }
 }
 .lang-btn:hover, .cart-btn:hover { background: var(--sand); }
 .lang-btn .cur { color: var(--muted); font-size: 12px; }
+@media (max-width: 759px) { .lang-btn { padding-inline: 8px; } }
 .wish-link { position: relative; }
 .wish-count {
   position: absolute; top: 6px; inset-inline-end: 4px; min-width: 17px; height: 17px; padding-inline: 4px; border-radius: 9px;
