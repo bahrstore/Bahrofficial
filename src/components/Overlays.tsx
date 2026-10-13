@@ -20,7 +20,6 @@ export function MenuDrawer() {
             {nav.map(n => <li key={n.href}><a href={n.href} onClick={n.onClick} aria-current={n.current ? 'page' : undefined}>{n.label}<span aria-hidden="true">{arrow}</span></a></li>)}
           </ul>
           <div className="drawer-links">
-            <a href="/account" onClick={route('/account')}>{t.account}</a>
             <a href="/wishlist" onClick={route('/wishlist')}>{t.wishlist} · {num(Object.keys(wish).length)}</a>
           </div>
         </nav>

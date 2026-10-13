@@ -11,7 +11,6 @@ const Base = ({ size = 20, children, ...rest }: P) => (
 export const MenuIcon = (p: P) => <Base size={22} {...p}><path d="M3 7h18M3 12h18M3 17h12" /></Base>
 export const SearchIcon = (p: P) => <Base {...p}><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></Base>
 export const CloseIcon = (p: P) => <Base {...p}><path d="M6 6l12 12M18 6L6 18" /></Base>
-export const UserIcon = (p: P) => <Base {...p}><circle cx="12" cy="8.5" r="3.8" /><path d="M4.5 20c1.2-3.6 4-5.3 7.5-5.3s6.3 1.7 7.5 5.3" /></Base>
 export const HeartIcon = (p: P) => <Base {...p}><path d="M12 20s-7.5-4.6-7.5-10.2A4.1 4.1 0 0 1 12 7.4a4.1 4.1 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z" /></Base>
 export const BagIcon = (p: P) => <Base size={21} {...p}><path d="M5 8h14l-1.2 12H6.2L5 8z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></Base>
 

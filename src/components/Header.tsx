@@ -4,7 +4,7 @@ import { usePredictiveSearch } from '../lib/useShopify'
 import { useStore } from '../store'
 import { useIsDesktop, useIsMobile } from '../useMedia'
 import { useNavItems } from '../useNavItems'
-import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from './Icons'
+import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon } from './Icons'
 
 export function Announcement() {
   const { t } = useStore()
@@ -61,13 +61,10 @@ export function Header() {
             {!isMobile && <span className="cur">BHD</span>}
           </button>
           {!isMobile && (
-            <>
-              <a href="/account" onClick={route('/account')} aria-label={t.account} className="icon-btn"><UserIcon /></a>
-              <a href="/wishlist" onClick={route('/wishlist')} aria-label={`${t.wishlist}: ${s.num(wishCount)}`} className="icon-btn wish-link">
-                <HeartIcon />
-                {wishCount > 0 && <span className="wish-count">{s.num(wishCount)}</span>}
-              </a>
-            </>
+            <a href="/wishlist" onClick={route('/wishlist')} aria-label={`${t.wishlist}: ${s.num(wishCount)}`} className="icon-btn wish-link">
+              <HeartIcon />
+              {wishCount > 0 && <span className="wish-count">{s.num(wishCount)}</span>}
+            </a>
           )}
           <button type="button" className="cart-btn" onClick={() => setPanel('cart')} aria-label={`${t.cart}: ${t.items(s.num(s.cartCount))}`}>
             <BagIcon />
