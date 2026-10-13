@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { TRENDING_LIMIT } from '../data'
 import { productCategory, type Category } from '../lib/product'
-import { useProducts } from '../lib/useShopify'
+import { useCollection } from '../lib/useShopify'
 import { useStore } from '../store'
 import { useIsMobile } from '../useMedia'
 import { ProductTile } from './ProductTile'
@@ -12,8 +13,10 @@ export function Trending() {
   const { t, lang, ar, arrow, route } = useStore()
   const isMobile = useIsMobile()
   const [filter, setFilter] = useState<'all' | Category>('all')
-  const query = useProducts(lang)
-  const list = (query.data ?? []).filter(p => filter === 'all' || productCategory(p) === filter)
+  // The Shopify `trending` collection (same handle as /collections/trending), first TRENDING_LIMIT products only.
+  // A missing collection (null) or an empty one shows no products; never the rest of the catalogue.
+  const query = useCollection('trending', lang, TRENDING_LIMIT)
+  const list = (query.data?.products.nodes ?? []).slice(0, TRENDING_LIMIT).filter(p => filter === 'all' || productCategory(p) === filter)
 
   return (
     <section id="trending" aria-labelledby="tr-h" className="trending">

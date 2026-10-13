@@ -40,8 +40,8 @@ const call = async <T>(fn: (c: StorefrontClient) => Promise<T>): Promise<T> => f
 
 export const getProducts = (lang: Lang): Promise<Product[]> => call(c => c.getProducts(lang))
 export const getProduct = (handle: string, lang: Lang): Promise<Product | null> => call(c => c.getProduct(handle, lang))
-/** A Shopify collection by handle, with its products; null when the store has no such collection. */
-export const getCollection = (handle: string, lang: Lang): Promise<Collection | null> => call(c => c.getCollection(handle, lang))
+/** A Shopify collection by handle, with its products (only the first `limit` when given); null when the store has no such collection. */
+export const getCollection = (handle: string, lang: Lang, limit?: number): Promise<Collection | null> => call(c => c.getCollection(handle, lang, limit))
 export const getProductRecommendations = (productId: string, lang: Lang): Promise<Product[]> => call(c => c.getProductRecommendations(productId, lang))
 export const getPolicy = (kind: PolicyKind, lang: Lang): Promise<Policy | null> => call(c => c.getPolicy(kind, lang))
 /** Resolves to null when the cart no longer exists (Shopify expires carts), so the caller can start a new one. */

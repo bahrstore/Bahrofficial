@@ -217,21 +217,25 @@ export function createStorefrontClient(cfg: StorefrontConfig) {
       return data.product ? mapProduct(data.product) : null
     },
 
-    /** A Shopify collection with its products in the collection's own sort order (paginated); null if it doesn't exist. */
-    async getCollection(handle: string, lang: Lang): Promise<Collection | null> {
+    /**
+     * A Shopify collection with its products in the collection's own sort order (paginated); null if it doesn't exist.
+     * `limit` loads only the first `limit` products (e.g. a homepage preview) instead of every page.
+     */
+    async getCollection(handle: string, lang: Lang, limit?: number): Promise<Collection | null> {
       type Page = { collection: (Omit<Collection, 'products'> & { products: { nodes: RawProduct[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } }) | null }
       let after: string | null = null
       let head: Omit<Collection, 'products'> | null = null
       const nodes: Product[] = []
       do {
-        const data: Page = await read(Q_COLLECTION, { handle, first: PRODUCTS_PAGE, after }, lang)
+        const first = limit ? Math.min(PRODUCTS_PAGE, limit - nodes.length) : PRODUCTS_PAGE
+        const data: Page = await read(Q_COLLECTION, { handle, first, after }, lang)
         if (!data.collection) return null
         const { products, ...rest } = data.collection
         head ??= { ...rest, description: rest.description ?? '' }
         nodes.push(...products.nodes.map(mapProduct))
         after = products.pageInfo.hasNextPage ? products.pageInfo.endCursor : null
-      } while (after && nodes.length < MAX_PRODUCTS)
-      return { ...head!, products: { nodes } }
+      } while (after && nodes.length < (limit ?? MAX_PRODUCTS))
+      return { ...head!, products: { nodes: limit ? nodes.slice(0, limit) : nodes } }
     },
 
     async getProductRecommendations(productId: string, lang: Lang): Promise<Product[]> {

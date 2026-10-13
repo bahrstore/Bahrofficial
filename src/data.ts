@@ -44,6 +44,8 @@ export const COLLECTIONS: Record<string, { key: CollectionKey; nav: number }> = 
   trending: { key: 'trending', nav: 3 },
 }
 export const COLLECTION_SLUGS = Object.keys(COLLECTIONS)
+// The home page's Trending section previews the first products of the `trending` collection (two rows on desktop).
+export const TRENDING_LIMIT = 8
 // /pages/* routes backed by Shopify's built-in store policies (see components/PolicyPage).
 export const POLICY_PAGES: Record<string, 'shipping' | 'refund' | 'privacy' | 'terms'> = { delivery: 'shipping', returns: 'refund', privacy: 'privacy', terms: 'terms' }
 export const POLICY_SLUGS = Object.keys(POLICY_PAGES)

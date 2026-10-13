@@ -46,8 +46,8 @@ export const useProduct = (handle: string, lang: Lang) =>
 export const useRecommendations = (productId: string, lang: Lang) =>
   useQuery<Product[]>(`recommendations:${productId}:${lang}`, () => getProductRecommendations(productId, lang))
 
-export const useCollection = (handle: string, lang: Lang) =>
-  useQuery<Collection | null>(`collection:${handle}:${lang}`, () => getCollection(handle, lang))
+export const useCollection = (handle: string, lang: Lang, limit?: number) =>
+  useQuery<Collection | null>(`collection:${handle}:${lang}${limit ? `:${limit}` : ''}`, () => getCollection(handle, lang, limit))
 
 export const usePolicy = (kind: PolicyKind, lang: Lang) =>
   useQuery<Policy | null>(`policy:${kind}:${lang}`, () => getPolicy(kind, lang))

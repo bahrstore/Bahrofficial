@@ -68,6 +68,14 @@ describe('Storefront client: collections', () => {
     expect(calls[1].body.variables.after).toBe('c1')
   })
 
+  it('with a limit, asks Shopify for only that many products and stops paginating', async () => {
+    const { fetch, calls } = stubFetch(page([1, 2, 3].map(rawProduct), 'c1'))
+    const c = await client(fetch).getCollection('trending', 'en', 3)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].body.variables).toMatchObject({ handle: 'trending', first: 3, after: null })
+    expect(c?.products.nodes.map(p => p.handle)).toEqual(['p-1', 'p-2', 'p-3'])
+  })
+
   it('returns null for a collection the store does not have', async () => {
     const { fetch } = stubFetch({ json: { data: { collection: null } } })
     expect(await client(fetch).getCollection('nope', 'en')).toBeNull()
