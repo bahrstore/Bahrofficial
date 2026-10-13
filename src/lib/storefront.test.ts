@@ -124,6 +124,20 @@ describe('Storefront client: errors', () => {
     expect(err).toBeInstanceOf(CartUserError)
     expect(err.message).toBe('Variant is sold out')
   })
+
+  it('requests cart warnings and returns them with the cart (e.g. a quantity Shopify lowered to the stock left)', async () => {
+    const warning = { code: 'MERCHANDISE_NOT_ENOUGH_STOCK', message: 'Only 2 items were added to your cart due to availability.', target: 'gid://shopify/CartLine/1' }
+    const { fetch, calls } = stubFetch({ json: { data: { cartLinesAdd: { cart: rawCart, userErrors: [], warnings: [warning] } } } })
+    const cart = await client(fetch).addCartLine('gid://shopify/Cart/abc', 'v', 5, 'en')
+    expect(calls[0].body.query).toContain('warnings { code message target }')
+    expect(cart.warnings).toEqual([warning])
+    expect(cart.id).toBe('gid://shopify/Cart/abc')
+  })
+
+  it('treats a missing warnings field as no warnings', async () => {
+    const { fetch } = stubFetch({ json: { data: { cartCreate: { cart: rawCart, userErrors: [] } } } })
+    expect((await client(fetch).createCart('en', [{ merchandiseId: 'v', quantity: 1 }])).warnings).toEqual([])
+  })
 })
 
 describe('Storefront client: cart', () => {

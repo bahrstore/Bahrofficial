@@ -4,7 +4,7 @@
 // There is no mock or sample data. Without VITE_SHOPIFY_DOMAIN and VITE_SHOPIFY_STOREFRONT_TOKEN every call
 // fails with ShopifyConfigError, so pages show their error states — in development and production alike.
 import { createStorefrontClient, type StorefrontClient } from './storefront'
-import type { Cart, Collection, Lang, Policy, PolicyKind, Product, Review } from './types'
+import type { Cart, CartMutation, Collection, Lang, Policy, PolicyKind, Product, Review } from './types'
 
 const env = import.meta.env
 const domain = (env.VITE_SHOPIFY_DOMAIN as string | undefined)?.trim()
@@ -48,8 +48,8 @@ export const getReviews = (lang: Lang): Promise<Review[]> => call(c => c.getRevi
 export const getPolicy = (kind: PolicyKind, lang: Lang): Promise<Policy | null> => call(c => c.getPolicy(kind, lang))
 /** Resolves to null when the cart no longer exists (Shopify expires carts), so the caller can start a new one. */
 export const getCart = (cartId: string, lang: Lang): Promise<Cart | null> => call(c => c.getCart(cartId, lang))
-export const createCart = (lang: Lang, lines: { merchandiseId: string; quantity: number }[] = []): Promise<Cart> => call(c => c.createCart(lang, lines))
-export const addCartLine = (cartId: string, merchandiseId: string, quantity: number, lang: Lang): Promise<Cart> => call(c => c.addCartLine(cartId, merchandiseId, quantity, lang))
+export const createCart = (lang: Lang, lines: { merchandiseId: string; quantity: number }[] = []): Promise<CartMutation> => call(c => c.createCart(lang, lines))
+export const addCartLine = (cartId: string, merchandiseId: string, quantity: number, lang: Lang): Promise<CartMutation> => call(c => c.addCartLine(cartId, merchandiseId, quantity, lang))
 /** A quantity of 0 removes the line, as cartLinesUpdate does. */
-export const updateCartLine = (cartId: string, lineId: string, quantity: number, lang: Lang): Promise<Cart> => call(c => c.updateCartLine(cartId, lineId, quantity, lang))
-export const removeCartLine = (cartId: string, lineId: string, lang: Lang): Promise<Cart> => call(c => c.removeCartLine(cartId, lineId, lang))
+export const updateCartLine = (cartId: string, lineId: string, quantity: number, lang: Lang): Promise<CartMutation> => call(c => c.updateCartLine(cartId, lineId, quantity, lang))
+export const removeCartLine = (cartId: string, lineId: string, lang: Lang): Promise<CartMutation> => call(c => c.removeCartLine(cartId, lineId, lang))

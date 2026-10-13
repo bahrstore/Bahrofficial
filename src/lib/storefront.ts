@@ -3,7 +3,7 @@
 //
 // The public Storefront access token is designed to ship to the browser; it can only read published catalog
 // data and manage carts. Never put an Admin API token in a VITE_ variable.
-import type { Cart, Collection, Image, Lang, Policy, PolicyKind, Product, ProductVariant, Rating, Review } from './types'
+import type { Cart, CartMutation, CartWarning, Collection, Image, Lang, Policy, PolicyKind, Product, ProductVariant, Rating, Review } from './types'
 
 export interface StorefrontConfig {
   /** Store domain, e.g. "bahr.myshopify.com" (no protocol). */
@@ -72,7 +72,8 @@ const CART = `
     cost { totalAmount { ${MONEY} } }
     merchandise { ... on ProductVariant { ${VARIANT} product { id handle title productType featuredImage { ${IMAGE} } } } }
   } }`
-const USER_ERRORS = 'userErrors { field message code }'
+// warnings report carts Shopify changed differently than asked, e.g. a quantity lowered to the stock left.
+const USER_ERRORS = 'userErrors { field message code } warnings { code message target }'
 const CTX = '@inContext(language: $language, country: $country)'
 const CTX_VARS = '$language: LanguageCode, $country: CountryCode'
 
@@ -127,7 +128,7 @@ type RawProduct = Omit<Product, 'images' | 'variants' | 'rating'> & {
   ratingCount?: RawMetafield
 }
 type RawCart = Cart
-type MutationResult = { cart: RawCart | null; userErrors: CartUserError['errors'] }
+type MutationResult = { cart: RawCart | null; userErrors: CartUserError['errors']; warnings?: CartWarning[] | null }
 
 /** Normalises a Storefront product into the app's Product type (fields the query leaves out get safe defaults). */
 export function mapProduct({ ratingField, ratingCount, ...p }: RawProduct): Product {
@@ -264,12 +265,12 @@ export function createStorefrontClient(cfg: StorefrontConfig) {
   }
   const read = <T>(q: string, v: Record<string, unknown>, lang: Lang) => request<T>(q, v, lang, true)
 
-  async function mutateCart(q: string, v: Record<string, unknown>, lang: Lang, key: string): Promise<Cart> {
+  async function mutateCart(q: string, v: Record<string, unknown>, lang: Lang, key: string): Promise<CartMutation> {
     const data = await request<Record<string, MutationResult>>(q, v, lang, false)
     const r = data[key]
     if (r.userErrors?.length) throw new CartUserError(r.userErrors)
     if (!r.cart) throw new CartUserError([{ message: 'Cart not returned' }])
-    return mapCart(r.cart)
+    return { ...mapCart(r.cart), warnings: r.warnings ?? [] }
   }
 
   return {
@@ -343,17 +344,17 @@ export function createStorefrontClient(cfg: StorefrontConfig) {
       return data.cart ? mapCart(data.cart) : null
     },
 
-    createCart(lang: Lang, lines: { merchandiseId: string; quantity: number }[] = []): Promise<Cart> {
+    createCart(lang: Lang, lines: { merchandiseId: string; quantity: number }[] = []): Promise<CartMutation> {
       return mutateCart(M_CART_CREATE, { input: { lines, buyerIdentity: { countryCode: cfg.country } } }, lang, 'cartCreate')
     },
-    addCartLine(cartId: string, merchandiseId: string, quantity: number, lang: Lang): Promise<Cart> {
+    addCartLine(cartId: string, merchandiseId: string, quantity: number, lang: Lang): Promise<CartMutation> {
       return mutateCart(M_LINES_ADD, { cartId, lines: [{ merchandiseId, quantity }] }, lang, 'cartLinesAdd')
     },
     /** A quantity of 0 removes the line, as cartLinesUpdate does. */
-    updateCartLine(cartId: string, lineId: string, quantity: number, lang: Lang): Promise<Cart> {
+    updateCartLine(cartId: string, lineId: string, quantity: number, lang: Lang): Promise<CartMutation> {
       return mutateCart(M_LINES_UPDATE, { cartId, lines: [{ id: lineId, quantity }] }, lang, 'cartLinesUpdate')
     },
-    removeCartLine(cartId: string, lineId: string, lang: Lang): Promise<Cart> {
+    removeCartLine(cartId: string, lineId: string, lang: Lang): Promise<CartMutation> {
       return mutateCart(M_LINES_REMOVE, { cartId, lineIds: [lineId] }, lang, 'cartLinesRemove')
     },
   }

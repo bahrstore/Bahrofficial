@@ -140,6 +140,19 @@ export interface Cart {
   }
 }
 
+/**
+ * Storefront `CartWarning`: the mutation succeeded but the cart isn't exactly as asked, e.g. Shopify added fewer
+ * than requested because of stock (MERCHANDISE_NOT_ENOUGH_STOCK) or nothing at all (MERCHANDISE_OUT_OF_STOCK).
+ */
+export interface CartWarning {
+  code: string
+  message: string
+  target: string
+}
+
+/** A cart mutation's result: the updated cart plus the warnings Shopify returned with it. */
+export type CartMutation = Cart & { warnings: CartWarning[] }
+
 /** Storefront `ShopPolicy` (shop.privacyPolicy, refundPolicy, shippingPolicy, termsOfService). `body` is HTML. */
 export interface Policy {
   id: string

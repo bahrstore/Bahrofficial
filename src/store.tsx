@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { COLLECTION_SLUGS, POLICY_SLUGS, T, type Strings } from './data'
 import { checkoutHref, defaultVariant, type Category } from './lib/product'
 import { addCartLine, createCart, getCart, removeCartLine, updateCartLine } from './lib/shopify'
-import type { Cart, Lang, Money, Product } from './lib/types'
+import type { Cart, CartMutation, CartWarning, Lang, Money, Product } from './lib/types'
 
 const STORE_KEY = 'bahr.store.v1'
 const ARABIC_NUMERALS: 'arab' | 'latn' = 'arab'
@@ -31,12 +31,13 @@ interface Store {
   cartQty: (productId: string) => number
   /**
    * Adds a variant (default: the first one that can be bought) to the cart. Resolves to the updated cart,
-   * or null when it failed (an error toast has already been shown).
+   * or null when it failed or Shopify had no stock to add (a toast has already been shown).
    */
   addToCart: (p: Product, opts?: { variantId?: string; quantity?: number }) => Promise<Cart | null>
   /**
    * Buy now: a separate one-item Shopify cart for just this variant and quantity, leaving the shopping cart
-   * untouched. Resolves to its checkout URL, or null when it failed (an error toast has already been shown).
+   * untouched. Resolves to its checkout URL, or null when it failed or Shopify couldn't cover the quantity (a toast
+   * has already been shown).
    */
   buyNow: (p: Product, opts: { variantId: string; quantity: number }) => Promise<string | null>
   setLineQty: (lineId: string, q: number) => void
@@ -55,6 +56,13 @@ interface Store {
 }
 
 const Ctx = createContext<Store | null>(null)
+
+/** Stock warnings Shopify returns with a cart mutation: 'none' (nothing added), 'partial' (fewer than asked) or null. */
+function stockShortfall(warnings: CartWarning[]): 'none' | 'partial' | null {
+  if (warnings.some(w => w.code === 'MERCHANDISE_OUT_OF_STOCK')) return 'none'
+  if (warnings.some(w => w.code === 'MERCHANDISE_NOT_ENOUGH_STOCK')) return 'partial'
+  return null
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useStore = () => {
@@ -148,13 +156,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Store>(() => {
     // Cart calls run one at a time, so quick taps can't race each other or create two carts.
-    const run = (op: (id: string | null) => Promise<Cart>, onDone?: () => void): Promise<Cart | null> => {
-      const done = queue.current.then(() => op(cartIdRef.current)).then(c => {
+    // Resolves to the updated cart and any stock shortfall Shopify reported, or null when the call failed.
+    const run = (op: (id: string | null) => Promise<CartMutation>) => {
+      const done = queue.current.then(() => op(cartIdRef.current)).then(({ warnings, ...c }) => {
         cartIdRef.current = c.id
         setCartId(c.id)
         setCartState(c)
-        onDone?.()
-        return c
+        return { cart: c, shortfall: stockShortfall(warnings) }
       }, () => {
         showToast(t.cartError)
         // Re-sync with Shopify so the drawer never shows a stale or expired cart after a failed update.
@@ -167,6 +175,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
       queue.current = done
       return done
+    }
+    // Quantity changes in the drawer: Shopify may cap an increase at the stock left.
+    const update = (op: (id: string | null) => Promise<CartMutation>) => {
+      void run(op).then(r => { if (r?.shortfall) showToast(t.cartStockAdjusted) })
     }
     return {
       lang, ar, t, arrow: ar ? '←' : '→', ...fmt,
@@ -183,10 +195,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // If Shopify has expired the saved cart, start a new one instead of failing; any other error still surfaces.
         const addTo = (id: string) => addCartLine(id, merchandiseId, quantity, lang)
           .catch(async e => { if ((await getCart(id, lang).catch(() => undefined)) === null) return fresh(); throw e })
-        return run(id => (id ? addTo(id) : fresh()), () => {
+        return run(id => (id ? addTo(id) : fresh())).then(r => {
+          if (!r) return null
+          // Shopify had none left to add: the cart is unchanged, so this isn't an "Added".
+          if (r.shortfall === 'none') { showToast(t.cartSoldOut); return null }
           setJustAdded(j => ({ ...j, [p.id]: true }))
-          showToast(t.toastAdded)
+          showToast(r.shortfall === 'partial' ? t.cartStockAdjusted : t.toastAdded)
           setTimeout(() => setJustAdded(j => ({ ...j, [p.id]: false })), 1400)
+          return r.cart
         })
       },
       buyNow: async (p, opts) => {
@@ -194,6 +210,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!variant?.availableForSale) return null
         try {
           const cart = await createCart(lang, [{ merchandiseId: variant.id, quantity: Math.max(1, Math.floor(opts.quantity)) }])
+          // Don't send the shopper to a checkout with fewer items than they chose (or none).
+          const shortfall = stockShortfall(cart.warnings)
+          if (shortfall) { showToast(shortfall === 'none' ? t.cartSoldOut : t.buyNowNotEnoughStock); return null }
           const href = checkoutHref(cart.checkoutUrl)
           if (!href) throw new Error('Shopify returned an unusable checkout URL')
           return href
@@ -202,8 +221,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return null
         }
       },
-      setLineQty: (lineId, q) => run(id => updateCartLine(id!, lineId, q, lang)),
-      removeLine: (lineId) => run(id => removeCartLine(id!, lineId, lang)),
+      setLineQty: (lineId, q) => update(id => updateCartLine(id!, lineId, q, lang)),
+      removeLine: (lineId) => update(id => removeCartLine(id!, lineId, lang)),
       toggleWish: (id) => {
         const on = !wish[id]
         setWish(w => {
