@@ -3,7 +3,7 @@
 //
 // The public Storefront access token is designed to ship to the browser; it can only read published catalog
 // data and manage carts. Never put an Admin API token in a VITE_ variable.
-import type { Cart, Collection, Image, Lang, Policy, PolicyKind, Product, ProductVariant } from './types'
+import type { Cart, Collection, Image, Lang, Policy, PolicyKind, Product, ProductVariant, Rating, Review } from './types'
 
 export interface StorefrontConfig {
   /** Store domain, e.g. "bahr.myshopify.com" (no protocol). */
@@ -61,7 +61,9 @@ const PRODUCT = `
   priceRange { minVariantPrice { ${MONEY} } maxVariantPrice { ${MONEY} } }
   compareAtPriceRange { minVariantPrice { ${MONEY} } maxVariantPrice { ${MONEY} } }
   variants(first: 100) { nodes { ${VARIANT} } }
-  collections(first: 10) { nodes { handle } }`
+  collections(first: 10) { nodes { handle } }
+  ratingField: metafield(namespace: "reviews", key: "rating") { value }
+  ratingCount: metafield(namespace: "reviews", key: "rating_count") { value }`
 const CART = `
   id checkoutUrl totalQuantity
   cost { subtotalAmount { ${MONEY} } totalAmount { ${MONEY} } }
@@ -87,6 +89,15 @@ const Q_COLLECTION = `query Collection($handle: String!, $first: Int!, $after: S
 const Q_RECOMMENDATIONS = `query Recommendations($productId: ID!, ${CTX_VARS}) ${CTX} {
   productRecommendations(productId: $productId, intent: RELATED) { ${PRODUCT} }
 }`
+/** Metaobject type that holds customer reviews (Shopify admin → Content → Metaobjects). */
+export const REVIEW_TYPE = 'product_review'
+const MEDIA_IMAGE = `... on MediaImage { image { ${IMAGE} } }`
+const Q_REVIEWS = `query Reviews($type: String!, $first: Int!, $after: String, ${CTX_VARS}) ${CTX} {
+  metaobjects(type: $type, first: $first, after: $after, sortKey: "updated_at", reverse: true) {
+    nodes { id updatedAt fields { key value reference { ${MEDIA_IMAGE} } references(first: 10) { nodes { ${MEDIA_IMAGE} } } } }
+    pageInfo { hasNextPage endCursor }
+  }
+}`
 const POLICY_FIELD: Record<PolicyKind, string> = {
   shipping: 'shippingPolicy', refund: 'refundPolicy', privacy: 'privacyPolicy', terms: 'termsOfService',
 }
@@ -108,14 +119,21 @@ const M_LINES_REMOVE = `mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!,
 
 /* ---------- response shapes and mapping ---------- */
 
-type RawProduct = Omit<Product, 'images' | 'variants'> & { images: { nodes: Image[] }; variants: { nodes: (Omit<ProductVariant, 'quantityAvailable'> & { quantityAvailable?: number | null })[] } }
+type RawMetafield = { value: string } | null | undefined
+type RawProduct = Omit<Product, 'images' | 'variants' | 'rating'> & {
+  images: { nodes: Image[] }
+  variants: { nodes: (Omit<ProductVariant, 'quantityAvailable'> & { quantityAvailable?: number | null })[] }
+  ratingField?: RawMetafield
+  ratingCount?: RawMetafield
+}
 type RawCart = Cart
 type MutationResult = { cart: RawCart | null; userErrors: CartUserError['errors'] }
 
 /** Normalises a Storefront product into the app's Product type (fields the query leaves out get safe defaults). */
-export function mapProduct(p: RawProduct): Product {
+export function mapProduct({ ratingField, ratingCount, ...p }: RawProduct): Product {
   return {
     ...p,
+    rating: parseRating(ratingField, ratingCount),
     description: p.description ?? '',
     vendor: p.vendor ?? '',
     productType: p.productType ?? '',
@@ -124,6 +142,63 @@ export function mapProduct(p: RawProduct): Product {
     options: p.options ?? [],
     collections: { nodes: p.collections?.nodes ?? [] },
     variants: { nodes: (p.variants?.nodes ?? []).map(v => ({ ...v, sku: v.sku || null, quantityAvailable: v.quantityAvailable ?? null })) },
+  }
+}
+
+/**
+ * Reads a `rating` metafield value, e.g. {"value":"4.5","scale_min":"1.0","scale_max":"5.0"}, plus the review count.
+ * Null when there's no rating yet or the value doesn't parse.
+ */
+export function parseRating(rating: RawMetafield, count: RawMetafield): Rating | null {
+  if (!rating?.value) return null
+  try {
+    const r = JSON.parse(rating.value)
+    const scaleMax = Number(r.scale_max) > 0 ? Number(r.scale_max) : 5
+    const value = Number(r.value)
+    if (!Number.isFinite(value) || value <= 0) return null
+    return { value: Math.min(value, scaleMax), scaleMax, count: Math.max(0, Math.floor(Number(count?.value) || 0)) }
+  } catch { return null }
+}
+
+type RawImageRef = { image?: Image | null } | null
+type RawField = { key: string; value: string | null; reference?: RawImageRef; references?: { nodes: RawImageRef[] } | null }
+export type RawReview = { id: string; updatedAt: string; fields: RawField[] }
+
+/**
+ * Maps a `product_review` metaobject entry. Fields read (a few common alternative keys are accepted):
+ * product (product reference, required), rating (rating or integer, required), author / name, title,
+ * body / content / comment, photos / images (file or list of files), recommend (true/false), date.
+ * Null when the entry has no product or no usable rating.
+ */
+export function mapReview(raw: RawReview): Review | null {
+  const field = (...keys: string[]) => raw.fields.find(f => keys.includes(f.key) && f.value != null && f.value !== '')
+  const text = (...keys: string[]) => field(...keys)?.value?.trim() ?? ''
+
+  const productId = text('product')
+  if (!productId.startsWith('gid://shopify/Product/')) return null
+
+  const ratingRaw = text('rating', 'stars')
+  let rating = NaN
+  try {
+    const r = JSON.parse(ratingRaw)
+    rating = typeof r === 'object' && r ? (Number(r.value) / (Number(r.scale_max) > 0 ? Number(r.scale_max) : 5)) * 5 : Number(r)
+  } catch { /* not JSON */ }
+  if (!(rating > 0)) return null
+
+  const photoField = field('photos', 'images', 'photo', 'image')
+  const refs = photoField ? [photoField.reference, ...(photoField.references?.nodes ?? [])] : []
+  const recommend = text('recommend', 'recommended')
+
+  return {
+    id: raw.id,
+    productId,
+    author: text('author', 'name', 'customer_name'),
+    rating: Math.min(5, rating),
+    title: text('title'),
+    body: text('body', 'content', 'comment', 'review'),
+    photos: refs.flatMap(r => (r?.image?.url ? [r.image] : [])),
+    recommend: recommend === 'true' ? true : recommend === 'false' ? false : null,
+    date: text('date', 'submitted_at') || raw.updatedAt,
   }
 }
 
@@ -241,6 +316,19 @@ export function createStorefrontClient(cfg: StorefrontConfig) {
     async getProductRecommendations(productId: string, lang: Lang): Promise<Product[]> {
       const data = await read<{ productRecommendations: RawProduct[] | null }>(Q_RECOMMENDATIONS, { productId }, lang)
       return (data.productRecommendations ?? []).map(mapProduct)
+    },
+
+    /** Every published review, newest first; empty when the store has none (or no `product_review` type yet). */
+    async getReviews(lang: Lang): Promise<Review[]> {
+      const out: Review[] = []
+      let after: string | null = null
+      do {
+        const data: { metaobjects: { nodes: RawReview[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } =
+          await read(Q_REVIEWS, { type: REVIEW_TYPE, first: PRODUCTS_PAGE, after }, lang)
+        for (const n of data.metaobjects.nodes) { const r = mapReview(n); if (r) out.push(r) }
+        after = data.metaobjects.pageInfo.hasNextPage ? data.metaobjects.pageInfo.endCursor : null
+      } while (after && out.length < MAX_PRODUCTS)
+      return out
     },
 
     async getPolicy(kind: PolicyKind, lang: Lang): Promise<Policy | null> {

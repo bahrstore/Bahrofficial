@@ -60,6 +60,32 @@ export interface PriceRange {
   maxVariantPrice: Money
 }
 
+/**
+ * From Shopify's standard product review metafields: reviews.rating (`value` on a 0–`scaleMax` scale) and
+ * reviews.rating_count. Review apps (Shopify Product Reviews, Judge.me, …) keep these up to date.
+ */
+export interface Rating {
+  value: number
+  scaleMax: number
+  count: number
+}
+
+/** One customer review: a `product_review` metaobject entry (see src/lib/storefront.ts for the fields it reads). */
+export interface Review {
+  id: string
+  productId: string
+  author: string
+  /** Out of 5. */
+  rating: number
+  title: string
+  body: string
+  photos: Image[]
+  /** Null when the review doesn't say. */
+  recommend: boolean | null
+  /** ISO date. */
+  date: string
+}
+
 /** Storefront `Product`. */
 export interface Product {
   id: string
@@ -80,6 +106,8 @@ export interface Product {
   variants: Connection<ProductVariant>
   /** Only the handles, to place the product in one of the app's collection pages. */
   collections: Connection<Pick<Collection, 'handle'>>
+  /** Null until the product has reviews (or when the metafields aren't exposed to the Storefront API). */
+  rating: Rating | null
 }
 
 /** Storefront `Collection`. */

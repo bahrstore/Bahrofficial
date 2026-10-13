@@ -1,7 +1,7 @@
 // App-level readings of Storefront product fields. Category and the Trending badge come from the product's
 // Shopify collections (the same source as the collection pages); the New badge from the "new" tag.
 import { COLLECTIONS } from '../data'
-import type { Image, Money, Product, ProductVariant } from './types'
+import type { Image, Money, Product, ProductVariant, Rating, Review } from './types'
 
 export type Category = 'car' | 'mobile'
 export type Badge = 'new' | 'sale' | 'trending'
@@ -92,4 +92,15 @@ export function checkoutHref(checkoutUrl: string): string | null {
     const u = new URL(checkoutUrl)
     return u.protocol === 'https:' ? u.toString() : null
   } catch { return null }
+}
+
+/** Average, star distribution and "would recommend" share, from the product's reviews. */
+export function reviewSummary(reviews: Review[]) {
+  const count = reviews.length
+  const average = count ? reviews.reduce((s, r) => s + r.rating, 0) / count : 0
+  const bars = [5, 4, 3, 2, 1].map(star => ({ star, n: reviews.filter(r => Math.round(r.rating) === star).length }))
+  const said = reviews.filter(r => r.recommend !== null)
+  const recommendPct = said.length ? Math.round((said.filter(r => r.recommend).length / said.length) * 100) : null
+  const rating: Rating | null = count ? { value: average, scaleMax: 5, count } : null
+  return { count, average, bars, recommendPct, rating }
 }

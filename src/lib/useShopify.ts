@@ -1,8 +1,8 @@
 // React hooks over src/lib/shopify.ts. Results are cached per query so components share one request,
 // and a cached result renders immediately (no empty frame when switching back to a language).
 import { useEffect, useState } from 'react'
-import { getCollection, getPolicy, getProduct, getProductRecommendations, getProducts } from './shopify'
-import type { Collection, Lang, Policy, PolicyKind, Product } from './types'
+import { getCollection, getPolicy, getProduct, getProductRecommendations, getProducts, getReviews } from './shopify'
+import type { Collection, Lang, Policy, PolicyKind, Product, Review } from './types'
 
 const pending = new Map<string, Promise<unknown>>()
 const resolved = new Map<string, unknown>()
@@ -51,3 +51,9 @@ export const useCollection = (handle: string, lang: Lang, limit?: number) =>
 
 export const usePolicy = (kind: PolicyKind, lang: Lang) =>
   useQuery<Policy | null>(`policy:${kind}:${lang}`, () => getPolicy(kind, lang))
+
+/** One request for all reviews (shared by every product page), filtered to this product. */
+export function useReviews(productId: string, lang: Lang) {
+  const q = useQuery<Review[]>(`reviews:${lang}`, () => getReviews(lang))
+  return { ...q, data: q.data?.filter(r => r.productId === productId) }
+}

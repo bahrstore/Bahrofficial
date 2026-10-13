@@ -19,6 +19,8 @@ interface Store {
   /** Formats a Storefront MoneyV2 with Intl.NumberFormat in its own currency. */
   money: (m: Money) => string
   num: (n: number) => string
+  /** A date such as "14 Oct 2026" in the interface language; the input string when it doesn't parse. */
+  date: (iso: string) => string
   pad: (n: number) => string
   catLabel: (c: Category) => string
   setLang: (l: Lang) => void
@@ -134,11 +136,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const currency: Record<string, Intl.NumberFormat> = {}
     const num = new Intl.NumberFormat(loc)
     const pad2 = new Intl.NumberFormat(loc, { minimumIntegerDigits: 2 })
+    const day = new Intl.DateTimeFormat(loc, { dateStyle: 'medium' })
     return {
       // BHD has three minor units, so Intl prints three decimals on its own.
       money: (m: Money) => (currency[m.currencyCode] ??= new Intl.NumberFormat(loc, { style: 'currency', currency: m.currencyCode })).format(Number(m.amount)),
       num: (n: number) => num.format(n),
       pad: (n: number) => pad2.format(n),
+      date: (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : day.format(d) },
     }
   }, [ar])
 

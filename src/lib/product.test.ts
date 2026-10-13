@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { checkoutHref, compareAtPrice, onOffer, defaultVariant, discountPercent, hasOnlyDefaultVariant, imageUrl, productBadge, productCategory, productCollection, variantCompareAt } from './product'
-import type { Money, Product, ProductVariant } from './types'
+import { checkoutHref, compareAtPrice, onOffer, defaultVariant, discountPercent, hasOnlyDefaultVariant, imageUrl, productBadge, productCategory, productCollection, reviewSummary, variantCompareAt } from './product'
+import type { Money, Product, ProductVariant, Review } from './types'
 
 // Minimal Storefront-shaped inputs for these pure helpers (test-only; the app has no sample data).
 const bhd = (n: number): Money => ({ amount: n.toFixed(3), currencyCode: 'BHD' })
@@ -16,7 +16,7 @@ const product = (variants: ProductVariant[], extra: Partial<Product> = {}): Prod
     vendor: '', productType: '', tags: [], featuredImage: null, images: { nodes: [] }, options: [],
     priceRange: { minVariantPrice: bhd(Math.min(...prices)), maxVariantPrice: bhd(Math.max(...prices)) },
     compareAtPriceRange: { minVariantPrice: bhd(Math.min(...compares)), maxVariantPrice: bhd(Math.max(...compares)) },
-    variants: { nodes: variants }, collections: { nodes: [] }, ...extra,
+    variants: { nodes: variants }, collections: { nodes: [] }, rating: null, ...extra,
   }
 }
 
@@ -96,5 +96,21 @@ describe('category and badges follow Shopify collections', () => {
     expect(productBadge(p(['trending']))).toBe('trending')
     expect(productBadge(p([], ['trending']))).toBeNull()
     expect(productBadge(p([], ['new']))).toBe('new')
+  })
+})
+
+describe('reviewSummary', () => {
+  const review = (rating: number, recommend: boolean | null = null): Review =>
+    ({ id: String(Math.random()), productId: 'p', author: '', rating, title: '', body: '', photos: [], recommend, date: '' })
+  it('is empty without reviews', () => {
+    expect(reviewSummary([])).toMatchObject({ count: 0, average: 0, recommendPct: null, rating: null })
+  })
+  it('averages, buckets by star and counts recommendations among reviews that say', () => {
+    const s = reviewSummary([review(5, true), review(4, false), review(4.6), review(1, true)])
+    expect(s.count).toBe(4)
+    expect(s.average).toBeCloseTo(3.65)
+    expect(s.bars).toEqual([{ star: 5, n: 2 }, { star: 4, n: 1 }, { star: 3, n: 0 }, { star: 2, n: 0 }, { star: 1, n: 1 }])
+    expect(s.recommendPct).toBe(67)
+    expect(s.rating).toEqual({ value: s.average, scaleMax: 5, count: 4 })
   })
 })

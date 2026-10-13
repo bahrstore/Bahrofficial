@@ -832,7 +832,97 @@ input::placeholder { color: var(--muted); }
 .pdp-desc { white-space: pre-line; }
 .pdp-panel-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-weight: 600; font-size: 14px; }
 
-.pdp 
+/* reviews */
+.pdp-reviews > .wrap { padding-block: clamp(40px, 5vw, 72px); }
+.rv-card { background: var(--cream); border: 1px solid var(--line); border-radius: 16px; padding: clamp(18px, 2.2vw, 26px); }
+.rv-h { margin: 0 0 16px; font-size: 17px; font-weight: 600; color: var(--emerald-night); letter-spacing: -0.01em; }
+.rv-top { display: grid; gap: 16px; }
+@media (min-width: 900px) { .rv-top { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+
+.rv-score { display: flex; align-items: center; gap: 16px; }
+.rv-avg { font-size: clamp(40px, 4.4vw, 52px); font-weight: 500; line-height: 1; color: var(--emerald-deep); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.rv-score .stars { margin: 0; }
+.rv-based { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-3); }
+.rv-rec { margin: 14px 0 0; font-size: 14px; color: var(--ink-2); }
+.rv-rec b { color: var(--emerald); font-weight: 700; }
+/* Bars stretch to fill the card, so they end level with the photo grid beside it. */
+.rv-summary { display: flex; flex-direction: column; }
+.rv-bars { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; flex: 1; align-content: space-between; }
+.rv-bars li { display: grid; grid-template-columns: 34px minmax(0, 1fr) 28px; align-items: center; gap: 12px; font-size: 13px; }
+.rv-star { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.star-glyph { fill: var(--gold); flex: none; }
+.rv-bar { height: 8px; border-radius: var(--pill); background: var(--sand); overflow: hidden; }
+.rv-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--emerald); transition: width .4s ease; }
+.rv-n { text-align: end; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.rv-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.rv-grid li { aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--sand); }
+/* A full grid (two rows, or the empty placeholder) stretches to the card's height so it ends level with the
+   summary; tiles never get shorter than square. */
+.rv-photos { display: flex; flex-direction: column; }
+.rv-grid.fill { flex: 1; grid-auto-rows: 1fr; }
+/* Width pinned to the column, or the square ratio would widen a stretched tile past the card. */
+.rv-grid.fill li { align-self: stretch; width: 100%; }
+.rv-photo, .rv-more { display: block; width: 100%; height: 100%; position: relative; }
+.rv-photo img, .rv-more img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.rv-photo:hover img { transform: scale(1.04); }
+.rv-more { border: 0; padding: 0; cursor: pointer; background: none; }
+.rv-more span {
+  position: absolute; inset: 0; display: grid; place-items: center; background: rgba(11, 46, 39, .62); color: var(--paper);
+  font-size: 22px; font-weight: 500;
+}
+.rv-placeholder { position: relative; flex: 1; display: flex; flex-direction: column; }
+.rv-placeholder li { background: linear-gradient(160deg, rgba(222, 233, 229, .7), rgba(241, 234, 223, .7)); }
+.rv-placeholder p {
+  position: absolute; inset: 0; margin: 0; display: grid; place-items: center; padding: 16px; text-align: center;
+  font-size: 14px; color: var(--ink-3); background: radial-gradient(closest-side, rgba(255, 253, 248, .92), rgba(255, 253, 248, .5));
+}
+
+.rv-comments { margin-block-start: clamp(28px, 3.4vw, 40px); }
+.rv-comments-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block-end: 16px; }
+.rv-comments-head .rv-h { margin: 0; }
+.rv-nav { display: flex; align-items: center; gap: 8px; }
+.rv-nav .link-btn { margin-inline-end: 6px; white-space: nowrap; }
+/* Phones swipe the row, so the arrows go. */
+@media (max-width: 599px) { .rv-arrow { display: none; } }
+.rv-arrow {
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(29, 34, 32, .18); background: var(--cream); color: var(--ink);
+  display: grid; place-items: center; cursor: pointer; font-size: 14px; transition: background .15s, color .15s, opacity .15s;
+}
+.rv-arrow:hover:not(:disabled) { background: var(--emerald); border-color: var(--emerald); color: var(--paper); }
+.rv-arrow:disabled { opacity: .35; cursor: default; }
+.rv-track, .rv-list { list-style: none; margin: 0; padding: 0; }
+.rv-track {
+  display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 32px) / 3); gap: 16px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.rv-track::-webkit-scrollbar { display: none; }
+.rv-track > li { scroll-snap-align: start; }
+@media (max-width: 899px) { .rv-track { grid-auto-columns: calc((100% - 16px) / 2); } }
+@media (max-width: 599px) { .rv-track { grid-auto-columns: 86%; gap: 12px; } }
+.rv-list { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+.rv-review { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rv-who { display: flex; align-items: center; gap: 12px; }
+.rv-avatar {
+  width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: var(--emerald-deep); color: var(--gold-soft); font-weight: 600; font-size: 16px;
+}
+.rv-name { margin: 0; font-weight: 600; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.rv-date { font-size: 12.5px; color: var(--ink-3); }
+.rv-rating { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rv-rating .stars { margin: 0; }
+.rv-title { margin: 0; font-weight: 600; font-size: 15px; color: var(--emerald-night); }
+.rv-body { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+.rv-body.clamp { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.rv-thumbs { list-style: none; margin: auto 0 0; padding: 4px 0 0; display: flex; gap: 8px; }
+.rv-thumbs li { width: 52px; height: 52px; border-radius: 8px; overflow: hidden; background: var(--sand); flex: none; }
+
+.rv-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding-block: clamp(28px, 4vw, 44px); }
+.rv-empty .state-diamond { margin-block-end: 8px; }
+.rv-empty p { margin: 0; color: var(--ink-3); font-size: 14px; max-width: 42ch; }
+.rv-empty .rv-empty-title { color: var(--emerald-night); font-weight: 600; font-size: 16px; }
+
 /* related */
 .pdp-related { background: var(--th-alt); }
 .pdp-related > .wrap { padding-block: clamp(40px, 5vw, 72px); }
@@ -1069,6 +1159,18 @@ input::placeholder { color: var(--muted); }
 .tile-price sup { font-size: .6em; line-height: 0; position: relative; top: -.2em; vertical-align: super; letter-spacing: 0; }
 .tile-price s { font-size: 12px; font-weight: 400; color: var(--muted); }
 .tile-blurb { margin: 4px 0 0; font-size: 12.5px; font-weight: 400; line-height: 1.4; color: #3D3D3D; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stars { display: flex; align-items: center; gap: 6px; margin-block-start: 6px; line-height: 1; }
+.stars-icons { position: relative; display: inline-flex; flex: none; }
+.stars-icons > span { display: inline-flex; gap: 1px; }
+.stars-icons svg { display: block; stroke-width: 1.5; stroke-linejoin: round; }
+.stars-empty svg { fill: none; stroke: var(--gold); }
+/* Filled copy on top, clipped to the rating; inline-start so RTL fills from the right. */
+.stars-full { position: absolute; inset-block: 0; inset-inline-start: 0; width: var(--fill, 0%); overflow: hidden; }
+.stars-full svg { flex: none; fill: var(--gold); stroke: var(--gold); }
+.stars-text { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stars-detail { gap: 10px; margin-block-start: 10px; }
+.stars-detail .stars-text { font-size: 14px; }
+.stars-detail .stars-text b { color: var(--ink); font-weight: 600; }
 .tile-btn {
   align-self: flex-start; margin-block-start: 12px; min-height: 34px; padding-inline: 18px; border: 1px solid #111;
   border-radius: var(--pill); background: #fff; color: #111; font-size: 13px; font-weight: 500; cursor: pointer;

@@ -3,6 +3,7 @@ import { compareAtPrice, hasOnlyDefaultVariant, productCategory, productPrice } 
 import type { Product } from '../lib/types'
 import { useStore } from '../store'
 import { BagIcon, HeartIcon } from './Icons'
+import { Stars } from './Stars'
 
 /**
  * Splits a formatted price so the currency and decimals can be raised, e.g. "BHD 30.000" → "BHD" + "30" + ".000",
@@ -56,6 +57,7 @@ export function ProductTile({ p, eager = false }: { p: Product; eager?: boolean 
           {compare && <s><PriceText text={money(compare)} /></s>}
         </span>
       </div>
+      <Stars rating={p.rating} />
       {blurb && <p className="tile-blurb">{blurb}</p>}
 
       {choose ? (

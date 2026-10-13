@@ -2,15 +2,17 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { COLLECTIONS } from '../data'
 import {
-  defaultVariant, discountPercent, hasOnlyDefaultVariant, productBadge, productCollection, variantCompareAt,
+  defaultVariant, discountPercent, hasOnlyDefaultVariant, productBadge, productCollection, reviewSummary, variantCompareAt,
 } from '../lib/product'
 import type { Product, ProductVariant } from '../lib/types'
-import { useProduct, useRecommendations } from '../lib/useShopify'
+import { useProduct, useRecommendations, useReviews } from '../lib/useShopify'
 import { useStore } from '../store'
 import { useIsMobile } from '../useMedia'
 import { CheckIcon, HeartIcon } from './Icons'
 import { ProductGallery } from './ProductGallery'
+import { ProductReviews } from './ProductReviews'
 import { ProductTile } from './ProductTile'
+import { Stars } from './Stars'
 
 type PreviewState = 'live' | 'loading' | 'error'
 const PREVIEW_STATES: PreviewState[] = ['live', 'loading', 'error']
@@ -71,10 +73,11 @@ export function ProductPage({ handle }: { handle: string }) {
 }
 
 function ProductView({ product: p }: { product: Product }) {
-  const { t, num, money, wish, toggleWish, addToCart, buyNow, route } = useStore()
+  const { t, lang, num, money, wish, toggleWish, addToCart, buyNow, route } = useStore()
   const isMobile = useIsMobile()
   const [params, setParams] = useSearchParams()
   const variants = p.variants.nodes
+  const reviews = useReviews(p.id, lang).data ?? []
 
   // ?variant=<id> selects a variant, as on Shopify themes, so a shared or reloaded link keeps the choice.
   const [variantId, setVariantId] = useState(() => {
@@ -186,6 +189,7 @@ function ProductView({ product: p }: { product: Product }) {
             <div className="pdp-info">
               {p.vendor && <p className="pdp-vendor">{p.vendor}</p>}
               <h1 id="pdp-title" className="pdp-title">{p.title}</h1>
+              <Stars rating={p.rating ?? reviewSummary(reviews).rating} size={18} detail />
 
               <div className="pdp-price-row">
                 <p className="pdp-price">
@@ -287,6 +291,7 @@ function ProductView({ product: p }: { product: Product }) {
         </div>
       </section>
 
+      <ProductReviews reviews={reviews} />
       <Related productId={p.id} />
 
       {isMobile && (

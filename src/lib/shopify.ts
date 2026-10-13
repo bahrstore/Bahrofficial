@@ -4,7 +4,7 @@
 // There is no mock or sample data. Without VITE_SHOPIFY_DOMAIN and VITE_SHOPIFY_STOREFRONT_TOKEN every call
 // fails with ShopifyConfigError, so pages show their error states — in development and production alike.
 import { createStorefrontClient, type StorefrontClient } from './storefront'
-import type { Cart, Collection, Lang, Policy, PolicyKind, Product } from './types'
+import type { Cart, Collection, Lang, Policy, PolicyKind, Product, Review } from './types'
 
 const env = import.meta.env
 const domain = (env.VITE_SHOPIFY_DOMAIN as string | undefined)?.trim()
@@ -43,6 +43,8 @@ export const getProduct = (handle: string, lang: Lang): Promise<Product | null> 
 /** A Shopify collection by handle, with its products (only the first `limit` when given); null when the store has no such collection. */
 export const getCollection = (handle: string, lang: Lang, limit?: number): Promise<Collection | null> => call(c => c.getCollection(handle, lang, limit))
 export const getProductRecommendations = (productId: string, lang: Lang): Promise<Product[]> => call(c => c.getProductRecommendations(productId, lang))
+/** All published customer reviews (product_review metaobjects); filter by productId. */
+export const getReviews = (lang: Lang): Promise<Review[]> => call(c => c.getReviews(lang))
 export const getPolicy = (kind: PolicyKind, lang: Lang): Promise<Policy | null> => call(c => c.getPolicy(kind, lang))
 /** Resolves to null when the cart no longer exists (Shopify expires carts), so the caller can start a new one. */
 export const getCart = (cartId: string, lang: Lang): Promise<Cart | null> => call(c => c.getCart(cartId, lang))

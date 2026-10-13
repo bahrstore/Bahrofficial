@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CartUserError, StorefrontError, createStorefrontClient, mapProduct } from './storefront'
+import { CartUserError, StorefrontError, createStorefrontClient, mapProduct, mapReview, parseRating } from './storefront'
 
 type Call = { url: string; init: RequestInit; body: { query: string; variables: Record<string, unknown> } }
 
@@ -160,5 +160,49 @@ describe('mapProduct', () => {
     expect(p.vendor).toBe('')
     expect(p.variants.nodes[0].sku).toBeNull()
     expect(p.variants.nodes[0].quantityAvailable).toBeNull()
+  })
+})
+
+describe('parseRating', () => {
+  const r = (value: string, max = '5.0') => ({ value: JSON.stringify({ value, scale_min: '1.0', scale_max: max }) })
+  it('reads the rating metafield and review count', () => {
+    expect(parseRating(r('4.5'), { value: '12' })).toEqual({ value: 4.5, scaleMax: 5, count: 12 })
+    expect(parseRating(r('8', '10'), null)).toEqual({ value: 8, scaleMax: 10, count: 0 })
+  })
+  it('is null without a usable rating', () => {
+    expect(parseRating(null, { value: '3' })).toBeNull()
+    expect(parseRating({ value: 'not json' }, null)).toBeNull()
+    expect(parseRating(r('0'), null)).toBeNull()
+  })
+  it('maps the raw metafields onto the product', () => {
+    const p = mapProduct({ ...rawProduct(1), ratingField: r('4'), ratingCount: { value: '3' } } as never)
+    expect(p.rating).toEqual({ value: 4, scaleMax: 5, count: 3 })
+    expect('ratingField' in p).toBe(false)
+    expect(mapProduct(rawProduct(1) as never).rating).toBeNull()
+  })
+})
+
+describe('mapReview', () => {
+  const raw = (fields: Record<string, unknown>) => ({
+    id: 'gid://shopify/Metaobject/1', updatedAt: '2026-10-01T10:00:00Z',
+    fields: Object.entries(fields).map(([key, f]) => (typeof f === 'string' ? { key, value: f } : { key, ...(f as object) })),
+  }) as never
+  const img = { url: 'https://cdn.shopify.com/a.jpg', altText: null }
+  it('reads a review entry', () => {
+    const r = mapReview(raw({
+      product: 'gid://shopify/Product/9', author: 'Sara', rating: JSON.stringify({ value: '4', scale_min: '1', scale_max: '5' }),
+      body: 'Great', recommend: 'true', photos: { value: '["gid://shopify/MediaImage/1"]', references: { nodes: [{ image: img }, null] } },
+    }))
+    expect(r).toMatchObject({ productId: 'gid://shopify/Product/9', author: 'Sara', rating: 4, body: 'Great', recommend: true, date: '2026-10-01T10:00:00Z' })
+    expect(r?.photos).toEqual([img])
+  })
+  it('accepts an integer rating and a single photo, and rescales other scales to 5', () => {
+    expect(mapReview(raw({ product: 'gid://shopify/Product/9', rating: '5', image: { value: 'x', reference: { image: img } } }))).toMatchObject({ rating: 5, photos: [img], recommend: null })
+    expect(mapReview(raw({ product: 'gid://shopify/Product/9', rating: JSON.stringify({ value: '8', scale_max: '10' }) }))?.rating).toBe(4)
+  })
+  it('skips entries without a product or a rating', () => {
+    expect(mapReview(raw({ rating: '5' }))).toBeNull()
+    expect(mapReview(raw({ product: 'gid://shopify/Product/9' }))).toBeNull()
+    expect(mapReview(raw({ product: 'gid://shopify/Product/9', rating: 'great' }))).toBeNull()
   })
 })
